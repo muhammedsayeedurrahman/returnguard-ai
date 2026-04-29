@@ -1,31 +1,63 @@
-# Python
+# ─── Secrets & state — NEVER commit ───────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# ─── Internal / not-needed in public repo ─────────────────────────────
+.claude/
+docs/
+*.log
+*.tmp
+*.bak
+.notes/
+scratch/
+
+# ─── Python ───────────────────────────────────────────────────────────
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
 venv/
 env/
 ENV/
-.env
-*.db
-*.db-journal
+.venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
 
-# Node
+# ─── Node / Vite ──────────────────────────────────────────────────────
 node_modules/
 dist/
+dist-ssr/
 .vite/
+.parcel-cache/
+*.tsbuildinfo
 
-# IDE
+# ─── IDE / OS ─────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
+*.suo
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Project
+# ─── Project uploads & artefacts ──────────────────────────────────────
 server/uploads/*
 !server/uploads/.gitkeep
+
+# ─── Build outputs ────────────────────────────────────────────────────
+build/
+out/
+.next/
