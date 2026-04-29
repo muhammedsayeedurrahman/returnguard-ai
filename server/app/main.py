@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, Response
 from .db import init_db, get_db
 from .engine.fusion import score_claim_async
 from .evaluation_engine.runner import open_session, take_turn
@@ -249,6 +250,44 @@ async def carrier_webhook(
     conn.commit()
     conn.close()
     return {"ok": True, "data": {"event_recorded": event_type}}
+
+
+@app.get("/api/v1/receipts/{order_id}/download")
+def download_receipt(order_id: str):
+    """Return the original receipt PDF generated at order time."""
+    pdf_path = UPLOAD_DIR / "receipts" / f"{order_id}.pdf"
+    if not pdf_path.exists():
+        raise HTTPException(404, "Receipt not found for this order")
+    return FileResponse(
+        str(pdf_path),
+        media_type="application/pdf",
+        filename=f"receipt_{order_id}.pdf",
+    )
+
+
+@app.get("/api/v1/demo/receipts/{order_id}/tampered")
+def download_tampered_receipt(order_id: str):
+    """Demo helper — returns a doctored version of the receipt with an inflated
+    amount. Hash differs from the stored original, so verification will FAIL.
+    """
+    from .engine.receipt_generator import generate_receipt_pdf
+    conn = get_db()
+    order = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+    conn.close()
+    if not order:
+        raise HTTPException(404, "Order not found")
+    inflated = max(order["value_inr"] * 2.5, 99999.0)
+    pdf_bytes = generate_receipt_pdf(
+        order_id=order_id, customer_id=order["customer_id"],
+        product_name=order["product_name"], amount_inr=inflated,
+        ordered_at=order["ordered_at"], tampered=True,
+    )
+    return Response(
+        pdf_bytes, media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{order_id}_tampered.pdf"',
+        },
+    )
 
 
 @app.post("/api/v1/receipts/verify")

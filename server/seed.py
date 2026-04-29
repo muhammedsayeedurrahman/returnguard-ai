@@ -10,6 +10,11 @@ from pathlib import Path
 from app.db import init_db, get_db
 from app.engine.address import hash_address
 from app.engine.address_intel import validate_address
+from app.engine.receipt_generator import (
+    generate_receipt_pdf, hash_pdf_bytes, write_receipt_to_disk,
+)
+
+UPLOAD_DIR = Path(__file__).parent / "uploads"
 
 
 def canonical_hash(raw_address: str) -> str:
@@ -89,6 +94,22 @@ def _insert_order(conn: sqlite3.Connection, order_id: str, cust_id: str,
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'delivered')",
         (order_id, cust_id, name, category, value, ordered, delivered,
          address, canonical_hash(address), pincode),
+    )
+
+    # Generate the actual receipt PDF + record its hash so customers can
+    # verify the legitimate copy via /billing.
+    pdf_bytes = generate_receipt_pdf(
+        order_id=order_id, customer_id=cust_id,
+        product_name=name, amount_inr=float(value),
+        ordered_at=ordered,
+    )
+    write_receipt_to_disk(pdf_bytes, order_id, UPLOAD_DIR)
+    sha256, md5 = hash_pdf_bytes(pdf_bytes)
+    conn.execute(
+        "INSERT OR REPLACE INTO receipt_hashes "
+        "(order_id, customer_id, amount_inr, pdf_hash_sha256, pdf_hash_md5) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (order_id, cust_id, float(value), sha256, md5),
     )
 
 

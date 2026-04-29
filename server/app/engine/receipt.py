@@ -85,18 +85,17 @@ def _check_date_tamper(metadata: dict) -> dict:
 
 
 def _amount_match(text: str, expected_inr: float) -> dict:
-    """Look for the order amount in the receipt text. Naive but useful."""
-    import re
+    """Look for the order amount in the receipt text. Comma-tolerant."""
     if not text:
         return {"checked": False}
+    # Strip commas + Rs/₹ symbols so "Rs. 1,499.00" matches "1499.00"
+    normalised = text.replace(",", "").replace("Rs.", "").replace("Rs", "").replace("₹", "")
     amount_str_int = f"{int(expected_inr)}"
     amount_str_dec = f"{expected_inr:.2f}"
-    found_int = amount_str_int in text
-    found_dec = amount_str_dec in text
     return {
         "checked": True,
         "expected": expected_inr,
-        "found_in_text": found_int or found_dec,
+        "found_in_text": amount_str_int in normalised or amount_str_dec in normalised,
     }
 
 

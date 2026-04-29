@@ -106,6 +106,8 @@ export default function ClaimStatus() {
         </div>
       </div>
 
+      <FraudPatternBanners evidence={data.evidence} />
+
       {/* AI Evaluation Engine chat — only renders when borderline */}
       {data.session && (
         <div className="bg-white rounded-xl border border-slate-200">
@@ -223,6 +225,82 @@ export default function ClaimStatus() {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+interface FraudPatternBannersProps {
+  evidence: Evidence[];
+}
+
+interface PatternConfig {
+  signal: string;
+  title: string;
+  description: string;
+  iconColor: string;
+  borderColor: string;
+  bgColor: string;
+}
+
+const PATTERN_CONFIG: PatternConfig[] = [
+  {
+    signal: "wardrobing",
+    title: "Short-duration return detected",
+    description:
+      "This item was returned soon after delivery. A restocking fee of up to 25% may apply. Our team will confirm the final amount.",
+    iconColor: "text-amber-700",
+    borderColor: "border-amber-200",
+    bgColor: "bg-amber-50",
+  },
+  {
+    signal: "friendly_fraud",
+    title: "Payment risk review in progress",
+    description:
+      "Your account has prior payment disputes on record. We're reviewing this claim more carefully — refunds, if approved, may be issued only via the original payment method.",
+    iconColor: "text-purple-700",
+    borderColor: "border-purple-200",
+    bgColor: "bg-purple-50",
+  },
+  {
+    signal: "inr",
+    title: "Carrier delivery records under review",
+    description:
+      "Our carrier's records indicate the package was delivered. We're cross-checking the delivery scan, GPS, and any post-delivery activity before processing.",
+    iconColor: "text-pink-700",
+    borderColor: "border-pink-200",
+    bgColor: "bg-pink-50",
+  },
+  {
+    signal: "ring_cluster",
+    title: "Pattern detected across multiple accounts",
+    description:
+      "This claim shares signals with several other recent claims. Your case has been flagged for our fraud-operations team to review.",
+    iconColor: "text-red-700",
+    borderColor: "border-red-200",
+    bgColor: "bg-red-50",
+  },
+];
+
+function FraudPatternBanners({ evidence }: FraudPatternBannersProps): JSX.Element | null {
+  const fired = PATTERN_CONFIG.filter((cfg) => {
+    const ev = evidence.find((e) => e.signal_name === cfg.signal);
+    return ev && (ev.verdict === "FAIL" || ev.verdict === "WARN");
+  });
+  if (fired.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      {fired.map((cfg) => (
+        <div
+          key={cfg.signal}
+          className={`rounded-xl border ${cfg.borderColor} ${cfg.bgColor} p-4 text-sm flex gap-3 items-start`}
+        >
+          <div className={`text-xl ${cfg.iconColor}`}>!</div>
+          <div className="flex-1">
+            <div className={`font-medium ${cfg.iconColor}`}>{cfg.title}</div>
+            <div className="text-slate-700 mt-1">{cfg.description}</div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
