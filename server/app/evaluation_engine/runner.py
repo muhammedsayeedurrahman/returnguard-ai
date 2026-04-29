@@ -224,12 +224,13 @@ def _gemini_turn(session_id: str, customer_message: str, turn_number: int,
 
 def take_turn(session_id: str, customer_message: str, photo_path: str | None,
               conn: sqlite3.Connection) -> dict[str, Any]:
+    from fastapi import HTTPException
     sess = conn.execute("SELECT * FROM evaluation_sessions WHERE id = ?",
                         (session_id,)).fetchone()
     if not sess:
-        return {"error": "session not found"}
+        raise HTTPException(404, "Evaluation session not found")
     if sess["outcome"]:
-        return {"error": "session already closed", "outcome": sess["outcome"]}
+        raise HTTPException(409, f"Session closed: {sess['outcome']}")
 
     turn_number = (sess["turn_count"] or 0) + 1
     if turn_number > MAX_TURNS:

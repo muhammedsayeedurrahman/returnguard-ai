@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS claims (
   reason_code TEXT,
   claim_text TEXT,
   photo_path TEXT,
+  capture_method TEXT DEFAULT 'file_upload',
+  fraud_context TEXT DEFAULT 'default',
   score INTEGER,
   decision TEXT,
   ring_cluster_id TEXT,

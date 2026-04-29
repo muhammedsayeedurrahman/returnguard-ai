@@ -96,6 +96,19 @@ def _insert_order(conn: sqlite3.Connection, order_id: str, cust_id: str,
 # Seed scenarios
 # ─────────────────────────────────────────────────────────────────────────
 
+def seed_maya_demo(conn: sqlite3.Connection) -> None:
+    """Explicit Maya demo order — ord_legit_000 is hardcoded so the demo panel
+    has deterministic product / address / customer-age. Used by DemoPanel.tsx.
+    """
+    _insert_customer(conn, "cust_maya_demo", days_old=500, return_count=0)
+    _insert_order(
+        conn, "ord_legit_000", "cust_maya_demo",
+        ("Boat Airdopes 141 Earbuds", "electronics", 1499),
+        "Flat 3A, MG Road, Bengaluru, 560001", "560001",
+        ordered_days_ago=8, delivered_days_ago=4,
+    )
+
+
 def seed_legit_history(conn: sqlite3.Connection, n: int = 30) -> None:
     """30 legitimate historical claims spread across 90 days, varied products + reasons."""
     for i in range(n):
@@ -218,6 +231,9 @@ def main():
 
     print("Seeding 30 legitimate customers + history…")
     seed_legit_history(conn, n=30)
+
+    print("Seeding Maya demo order (ord_legit_000)…")
+    seed_maya_demo(conn)
 
     print("Seeding Priya (EXIF-fail borderline scenario)…")
     seed_priya(conn)

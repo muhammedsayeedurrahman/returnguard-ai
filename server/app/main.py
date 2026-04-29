@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from .db import init_db, get_db
-from .engine.fusion import score_claim
+from .engine.fusion import score_claim_async
 from .evaluation_engine.runner import open_session, take_turn
 
 app = FastAPI(title="sec_logistics Inconsistency Engine")
@@ -47,6 +47,7 @@ async def submit_claim(
     order_id: str = Form(...),
     reason_code: str = Form(...),
     claim_text: str = Form(""),
+    capture_method: str = Form("file_upload"),
     photo: UploadFile | None = File(None),
 ):
     claim_id = f"claim_{uuid.uuid4().hex[:8]}"
@@ -62,14 +63,25 @@ async def submit_claim(
         conn.close()
         raise HTTPException(404, "Order not found")
 
+    # Bug 3: increment rolling 30-day return count
     conn.execute(
-        "INSERT INTO claims (id, order_id, customer_id, reason_code, claim_text, photo_path) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (claim_id, order_id, order["customer_id"], reason_code, claim_text, photo_path),
+        "UPDATE customers SET return_count_30d = return_count_30d + 1 WHERE id = ?",
+        (order["customer_id"],),
+    )
+
+    conn.execute(
+        "INSERT INTO claims (id, order_id, customer_id, reason_code, claim_text, "
+        "photo_path, capture_method) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (claim_id, order_id, order["customer_id"], reason_code, claim_text,
+         photo_path, capture_method),
     )
     conn.commit()
 
-    score, decision, evidence = score_claim(claim_id, claim_text, photo_path, dict(order), conn)
+    # Bug 1: async fusion runs signals concurrently
+    score, decision, evidence = await score_claim_async(
+        claim_id, claim_text, photo_path, dict(order), conn, capture_method,
+    )
 
     conn.execute(
         "UPDATE claims SET score = ?, decision = ? WHERE id = ?",
