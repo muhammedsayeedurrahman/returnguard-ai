@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>sec_logistics — Pitch Deck</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #0f172a; color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif;
+    -webkit-font-smoothing: antialiased; }
+
+  .deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 6vh 8vw;
+    opacity: 0; transform: translateY(24px) scale(0.99);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+  }
+  .slide.active {
+    opacity: 1; transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  /* Slide-specific layouts */
+  .slide.left { align-items: flex-start; text-align: left; }
+  .slide h1 { font-size: clamp(2.5rem, 6vw, 5rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; }
+  .slide h2 { font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 600; line-height: 1.1; letter-spacing: -0.01em; }
+  .slide h3 { font-size: clamp(1.25rem, 2vw, 1.75rem); font-weight: 500; }
+  .slide p, .slide li { font-size: clamp(1rem, 1.4vw, 1.4rem); line-height: 1.55; color: #cbd5e1; }
+  .slide .accent { color: #818cf8; }
+  .slide .danger { color: #f87171; }
+  .slide .success { color: #34d399; }
+  .slide .warning { color: #fbbf24; }
+  .slide .muted { color: #64748b; }
+  .slide .mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.95em; }
+
+  /* Top bar */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; height: 4px;
+    background: rgba(99,102,241,0.15); z-index: 30;
+  }
+  .progress {
+    height: 100%; background: linear-gradient(90deg, #6366f1, #a855f7);
+    transition: width 0.4s ease;
+  }
+  .timer {
+    position: fixed; top: 16px; right: 20px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 14px; color: #64748b; padding: 4px 10px;
+    background: rgba(15,23,42,0.6); border: 1px solid #1e293b; border-radius: 6px;
+    z-index: 30;
+  }
+  .timer.over { color: #f87171; border-color: #7f1d1d; }
+  .footnote {
+    position: fixed; bottom: 16px; left: 20px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px; color: #475569; z-index: 30;
+  }
+  .nav-hint {
+    position: fixed; bottom: 16px; right: 20px;
+    font-size: 11px; color: #475569; z-index: 30;
+  }
+
+  /* Slide 1 — title */
+  .hero { text-align: center; }
+  .hero .num { font-size: clamp(4rem, 9vw, 8rem); font-weight: 800;
+    background: linear-gradient(135deg, #fbbf24, #f87171); -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; background-clip: text; line-height: 1; }
+  .hero .tagline { margin-top: 1.5rem; font-size: clamp(1.25rem, 2.5vw, 2rem); color: #cbd5e1; }
+  .hero .signature { margin-top: 3rem; font-size: 1.15rem; color: #94a3b8;
+    border-top: 1px solid #1e293b; padding-top: 1.5rem; max-width: 720px; }
+
+  /* Slide 2 — three buckets */
+  .buckets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; width: 100%; max-width: 1100px; }
+  .bucket {
+    background: rgba(30,41,59,0.5); border: 1px solid #334155; border-radius: 16px;
+    padding: 28px 24px; text-align: center;
+  }
+  .bucket .icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .bucket .stat { font-size: 2rem; font-weight: 700; margin: 8px 0; }
+  .bucket .label { font-size: 0.95rem; color: #94a3b8; }
+
+  /* Slide 3 — architecture */
+  .arch-flow {
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    width: 100%; max-width: 900px;
+  }
+  .arch-row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; width: 100%; }
+  .arch-box {
+    background: rgba(30,41,59,0.7); border: 1px solid #334155; border-radius: 10px;
+    padding: 12px 20px; font-size: 0.95rem; min-width: 140px; text-align: center;
+  }
+  .arch-box.signal { border-color: #6366f1; }
+  .arch-box.engine { background: rgba(99,102,241,0.15); border-color: #818cf8; font-weight: 600; }
+  .arch-box.tier { font-family: monospace; font-size: 0.85rem; }
+  .arrow { color: #475569; font-size: 1.5rem; align-self: center; }
+
+  /* Slide 4-6 — demo placeholders */
+  .demo-card {
+    background: rgba(30,41,59,0.6); border: 2px dashed #475569; border-radius: 16px;
+    padding: 60px 50px; text-align: center; max-width: 800px;
+  }
+  .demo-card .live-badge {
+    display: inline-block; background: #dc2626; color: white;
+    padding: 4px 14px; border-radius: 9999px; font-size: 0.85rem;
+    font-weight: 600; margin-bottom: 20px; letter-spacing: 0.05em;
+  }
+  .demo-card .demo-title { font-size: 2.5rem; font-weight: 700; }
+  .demo-card .demo-desc { color: #cbd5e1; margin-top: 1rem; font-size: 1.2rem; }
+  .demo-card .demo-cta { margin-top: 2rem; font-family: monospace;
+    background: #0f172a; padding: 12px 20px; border-radius: 8px;
+    border: 1px solid #334155; display: inline-block; }
+  .demo-card .demo-narration { margin-top: 2rem; padding: 16px; border-left: 3px solid #818cf8;
+    text-align: left; color: #94a3b8; font-style: italic; }
+
+  /* Slide 7 — depth tiles */
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; width: 100%; max-width: 1100px; }
+  .tile {
+    background: rgba(30,41,59,0.5); border: 1px solid #334155; border-radius: 12px;
+    padding: 20px;
+  }
+  .tile .tile-icon { font-size: 1.8rem; margin-bottom: 8px; }
+  .tile .tile-title { font-size: 1.05rem; font-weight: 600; color: #e2e8f0; margin-bottom: 4px; }
+  .tile .tile-desc { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; }
+  .tile .tile-status { font-size: 0.75rem; color: #6366f1; margin-top: 8px; font-family: monospace; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Slide 8 — fraud math */
+  .math-row { display: flex; gap: 32px; align-items: baseline; justify-content: center; flex-wrap: wrap; }
+  .math-item { text-align: center; }
+  .math-item .big { font-size: clamp(3rem, 7vw, 6rem); font-weight: 800; line-height: 1;
+    background: linear-gradient(135deg, #34d399, #22d3ee); -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; background-clip: text; }
+  .math-item .small { color: #94a3b8; margin-top: 0.5rem; font-size: 0.95rem; }
+
+  /* Slide 9 — architecture cost */
+  .cost-table { border-collapse: collapse; max-width: 700px; width: 100%; }
+  .cost-table th, .cost-table td { padding: 10px 14px; text-align: left;
+    border-bottom: 1px solid #334155; font-size: 0.95rem; }
+  .cost-table th { color: #6366f1; font-weight: 600; }
+  .cost-table .free { color: #34d399; font-weight: 600; }
+
+  /* Slide 10 — why we win */
+  .reasons { display: flex; flex-direction: column; gap: 24px; max-width: 900px; }
+  .reason {
+    display: flex; gap: 20px; padding: 20px; background: rgba(30,41,59,0.5);
+    border: 1px solid #334155; border-radius: 12px; align-items: center;
+  }
+  .reason .num {
+    font-size: 2.5rem; font-weight: 800; color: #818cf8; min-width: 60px;
+    font-family: monospace; line-height: 1;
+  }
+  .reason .text { font-size: 1.15rem; color: #e2e8f0; }
+  .reason .text strong { color: #fbbf24; }
+
+  /* Slide 11 — roadmap */
+  .roadmap { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; max-width: 1100px; }
+  .quarter {
+    background: rgba(30,41,59,0.5); border: 1px solid #334155; border-radius: 10px;
+    padding: 16px; text-align: left;
+  }
+  .quarter .q-label { font-family: monospace; font-size: 0.8rem; color: #6366f1;
+    margin-bottom: 8px; letter-spacing: 0.1em; }
+  .quarter .q-title { font-weight: 600; margin-bottom: 6px; font-size: 1rem; }
+  .quarter .q-desc { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; }
+
+  /* Slide 12 — closing */
+  .close-card { text-align: center; }
+  .close-card .winning-line {
+    font-size: clamp(1.5rem, 3vw, 2.5rem); font-style: italic; color: #cbd5e1;
+    max-width: 800px; margin: 0 auto 3rem;
+  }
+  .close-card .links {
+    display: flex; gap: 24px; justify-content: center; margin-top: 2rem;
+  }
+  .close-card .link {
+    background: rgba(99,102,241,0.15); border: 1px solid #6366f1; padding: 10px 20px;
+    border-radius: 8px; font-family: monospace; font-size: 0.95rem;
+  }
+
+  /* Number badges */
+  .pill {
+    display: inline-block; padding: 4px 10px; background: rgba(251,191,36,0.15);
+    color: #fbbf24; border: 1px solid #fbbf24; border-radius: 9999px;
+    font-family: monospace; font-size: 0.8rem; margin: 0 4px;
+  }
+</style>
+</head>
+<body>
+<div class="topbar"><div class="progress" id="progress"></div></div>
+<div class="timer" id="timer">0:00 / 1:30</div>
+<div class="footnote" id="slidenum">1 / 12</div>
+<div class="nav-hint">← → to navigate · F fullscreen · R reset timer</div>
+
+<div class="deck" id="deck">
+
+  <!-- Slide 1 — Title -->
+  <section class="slide active hero" data-slide="1">
+    <div class="num">₹103B</div>
+    <div class="tagline">lost to returns fraud every year.</div>
+    <div class="signature">
+      Today every borderline claim sits on a customer-care call for <span class="warning">8 minutes</span>.<br/>
+      We replace that rep — not the customer.
+      <div style="margin-top: 2rem; font-size: 1rem; color: #64748b; font-family: monospace;">
+        sec_logistics · Inconsistency Engine
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 2 — Three buckets -->
+  <section class="slide" data-slide="2">
+    <h2 style="margin-bottom: 3rem;">The three buckets of returns fraud</h2>
+    <div class="buckets">
+      <div class="bucket">
+        <div class="icon">🖼️</div>
+        <h3>Damage claims</h3>
+        <div class="stat danger">75%</div>
+        <div class="label">of AI-faked photos miss human review</div>
+      </div>
+      <div class="bucket">
+        <div class="icon">📄</div>
+        <h3>Receipt fraud</h3>
+        <div class="stat warning">14%</div>
+        <div class="label">of fraud docs are AI-generated receipts (2025)</div>
+      </div>
+      <div class="bucket">
+        <div class="icon">🕸️</div>
+        <h3>Return rings</h3>
+        <div class="stat danger">€6M</div>
+        <div class="label">REKK ring busted Mar 2025</div>
+      </div>
+    </div>
+    <p class="muted" style="margin-top: 3rem; font-size: 1rem;">
+      <span class="pill">$103B/yr</span>
+      <span class="pill">15.14% of returns</span>
+      <span class="pill">+20% YoY</span>
+    </p>
+  </section>
+
+  <!-- Slide 3 — Architecture -->
+  <section class="slide" data-slide="3">
+    <h2 style="margin-bottom: 3rem;">Six signals → Fusion → Three tiers</h2>
+    <div class="arch-flow">
+      <div class="arch-row">
+        <div class="arch-box signal">EXIF</div>
+        <div class="arch-box signal">Image-Text VLM</div>
+        <div class="arch-box signal">Linguistic</div>
+        <div class="arch-box signal">Address Cluster</div>
+        <div class="arch-box signal">Behavioural</div>
+        <div class="arch-box signal">Carrier Signals</div>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="arch-box engine">Inconsistency Engine — weighted fusion + corroboration</div>
+      <div class="arrow">↓</div>
+      <div class="arch-row">
+        <div class="arch-box tier success">&lt; 35  →  AUTO-APPROVE</div>
+        <div class="arch-box tier accent">35-64 →  AI EVALUATION ENGINE</div>
+        <div class="arch-box tier danger">≥ 65  →  REJECT + EVIDENCE</div>
+      </div>
+    </div>
+    <p class="muted" style="margin-top: 2.5rem; font-size: 0.95rem;">
+      No single signal blocks alone · Asymmetric tiers favour approval (false positive cost is 6× fraud cost)
+    </p>
+  </section>
+
+  <!-- Slide 4 — Maya demo -->
+  <section class="slide" data-slide="4">
+    <div class="demo-card">
+      <div class="live-badge">● LIVE DEMO</div>
+      <div class="demo-title">Maya — legit customer</div>
+      <div class="demo-desc">Damage claim → 6 signals run silently → APPROVE in 2.8 seconds</div>
+      <div class="demo-cta">localhost:5173/demo → click [Run Maya]</div>
+      <div class="demo-narration">
+        "Maya files a damage claim. Six fraud signals run silently — EXIF, vision, linguistic,
+        address, behavioural, carrier. Score 22. Approved in 2.8 seconds. She never sees an
+        evaluator. This is 85% of customers — they never knew six fraud checks ran."
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5 — Priya demo (HERO) -->
+  <section class="slide" data-slide="5">
+    <div class="demo-card" style="border-color: #818cf8;">
+      <div class="live-badge" style="background: #6366f1;">● LIVE DEMO · HERO</div>
+      <div class="demo-title">Priya — borderline (the rep replacement)</div>
+      <div class="demo-desc">
+        EXIF date 19 days before order →
+        <span class="accent">AI Evaluation Engine</span> resolves in <strong style="color: #34d399;">67 seconds</strong>
+      </div>
+      <div class="demo-cta">localhost:5173/demo → [Run Priya]</div>
+      <div class="demo-narration">
+        "Priya's claim scores 51. Borderline. Today this is an 8-minute customer-care call.
+        Watch what happens instead — the AI Evaluation Engine takes over. It asks for a fresh
+        live photo. EXIF shows the photo is 19 days OLDER than the order date. Refund denied
+        with a legally-defensible audit trail. <strong style="color: #fbbf24;">Eight minutes of
+        human work, replaced by 67 seconds of AI work.</strong>"
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 6 — Ring demo -->
+  <section class="slide" data-slide="6">
+    <div class="demo-card" style="border-color: #f87171;">
+      <div class="live-badge" style="background: #b91c1c;">● LIVE DEMO</div>
+      <div class="demo-title">Ring detection — silent backend catch</div>
+      <div class="demo-desc">
+        4 accounts · shared address hash · 87% linguistic similarity →
+        <span class="warning">₹47,000</span> auto-frozen
+      </div>
+      <div class="demo-cta">localhost:5173/demo → [Run Ring] (open /admin in 2nd tab)</div>
+      <div class="demo-narration">
+        "Three other accounts filed claims tonight. Different IPs. Different phone numbers.
+        Different accounts. But: 87% linguistic similarity. Same canonical address hash.
+        The graph lights up. Four nodes connected in red. ₹47,000 of attempted fraud,
+        frozen automatically — zero customer-care touchpoints."
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 7 — Depth (slide-only roadmap) -->
+  <section class="slide" data-slide="7">
+    <h2 style="margin-bottom: 0.75rem;">What you saw was four signals.</h2>
+    <p style="margin-bottom: 2rem; color: #cbd5e1;">Six more are already architected — Q2 ship.</p>
+    <div class="tiles">
+      <div class="tile">
+        <div class="tile-icon">📸</div>
+        <div class="tile-title">Camera-only enforcement</div>
+        <div class="tile-desc">In-browser live capture; gallery upload disabled. Eliminates 100% of pre-existing-photo attacks.</div>
+        <div class="tile-status">Q2</div>
+      </div>
+      <div class="tile">
+        <div class="tile-icon">🔐</div>
+        <div class="tile-title">OTP delivery confirmation</div>
+        <div class="tile-desc">Value-tiered: ≥₹5,000 orders. Customer's phone confirms receipt — INR fraud structurally impossible.</div>
+        <div class="tile-status">Q2</div>
+      </div>
+      <div class="tile">
+        <div class="tile-icon">🧠</div>
+        <div class="tile-title">Behavioural biometrics + Louvain</div>
+        <div class="tile-desc">Keystroke dynamics + community detection on shared device fingerprints. Catches account-takeover.</div>
+        <div class="tile-status">Q2</div>
+      </div>
+      <div class="tile">
+        <div class="tile-icon">🔏</div>
+        <div class="tile-title">QR-signed receipts</div>
+        <div class="tile-desc">HMAC-SHA256 server-signed at issuance. Tamper-evident. Edited PDFs fail verification.</div>
+        <div class="tile-status">Q3</div>
+      </div>
+      <div class="tile">
+        <div class="tile-icon">🚚</div>
+        <div class="tile-title">Carrier integrations</div>
+        <div class="tile-desc">Delhivery + Bluedart adapters: POD GPS at 200m, scan trail, OS&D inspection.</div>
+        <div class="tile-status">Q3</div>
+      </div>
+      <div class="tile">
+        <div class="tile-icon">📊</div>
+        <div class="tile-title">Engagement events</div>
+        <div class="tile-desc">App login, warranty registration, QR scan. Silent positive proof of possession — defeats wardrobing.</div>
+        <div class="tile-status">Q3</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 8 — Fraud math -->
+  <section class="slide" data-slide="8">
+    <h2 style="margin-bottom: 3rem;">Real ROI · not abstract fraud prevention</h2>
+    <div class="math-row">
+      <div class="math-item">
+        <div class="big">₹37 lakh</div>
+        <div class="small">saved per mid-size D2C / year</div>
+      </div>
+      <div class="math-item">
+        <div class="big">5.3×</div>
+        <div class="small">faster than CC reps (8min → 90s)</div>
+      </div>
+      <div class="math-item">
+        <div class="big">40×</div>
+        <div class="small">cheaper per case (₹80 → ₹2)</div>
+      </div>
+    </div>
+    <p style="margin-top: 3rem; max-width: 800px; text-align: center; color: #cbd5e1;">
+      For a retailer doing 100,000 returns/year with 10% borderline:
+      <span class="pill">₹8L/yr CC labour</span> →
+      <span class="pill" style="background: rgba(52,211,153,0.15); color: #34d399; border-color: #34d399;">₹20K/yr engine</span>
+      + <span class="pill" style="background: rgba(248,113,113,0.15); color: #f87171; border-color: #f87171;">₹30L/yr fraud caught</span>
+    </p>
+  </section>
+
+  <!-- Slide 9 — Architecture & cost -->
+  <section class="slide" data-slide="9">
+    <h2 style="margin-bottom: 2rem;">Stack · scales · cheap</h2>
+    <div style="display: flex; gap: 60px; align-items: flex-start; flex-wrap: wrap; justify-content: center;">
+      <div>
+        <h3 style="color: #818cf8; margin-bottom: 1rem;">Stack</h3>
+        <ul style="list-style: none; line-height: 2;">
+          <li>FastAPI · SQLite · pgvector-ready</li>
+          <li>Gemini 2.5 Flash function-calling</li>
+          <li>Google Vision (label + reverse search)</li>
+          <li>scikit-learn TF-IDF · Pillow EXIF</li>
+          <li>React 18 · Vite · Tailwind v4</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="color: #818cf8; margin-bottom: 1rem;">Cost per fraud check</h3>
+        <table class="cost-table">
+          <thead>
+            <tr><th>Volume</th><th>Per check</th><th>Monthly</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Hackathon</td><td class="free">₹0</td><td class="free">$0 (free tier)</td></tr>
+            <tr><td>1k/day SMB</td><td>₹0.20</td><td>~$15</td></tr>
+            <tr><td>10k/day mid</td><td>₹0.15</td><td>~$50</td></tr>
+            <tr><td>100k/day enterprise</td><td>₹0.12</td><td>~$400</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 10 — Why we win -->
+  <section class="slide" data-slide="10">
+    <h2 style="margin-bottom: 3rem;">Why we win</h2>
+    <div class="reasons">
+      <div class="reason">
+        <div class="num">01</div>
+        <div class="text">
+          <strong>CC-rep replacement</strong> — anchored to a real cost retailers already pay (₹3-4 lakh/yr per Tier-1 rep). Not a feature, a salary line.
+        </div>
+      </div>
+      <div class="reason">
+        <div class="num">02</div>
+        <div class="text">
+          <strong>Six-signal cross-modal fusion</strong> — no incumbent (Signifyd, Riskified, Loop, Narvar, Shiprocket) verifies the actual claim evidence. We do.
+        </div>
+      </div>
+      <div class="reason">
+        <div class="num">03</div>
+        <div class="text">
+          <strong>DPDP-native evidence trail</strong> — every decision outputs a paragraph that holds up in Indian consumer court. Hashes for cluster lookup. Encrypted at rest.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 11 — Roadmap -->
+  <section class="slide" data-slide="11">
+    <h2 style="margin-bottom: 2.5rem;">Roadmap</h2>
+    <div class="roadmap">
+      <div class="quarter">
+        <div class="q-label">Q1 · NOW</div>
+        <div class="q-title">MVP shipped</div>
+        <div class="q-desc">4 live signals · AI Evaluation Engine · ring detection · 30-h hackathon build</div>
+      </div>
+      <div class="quarter">
+        <div class="q-label">Q2 · 50 retailers</div>
+        <div class="q-title">Slide-7 features</div>
+        <div class="q-desc">Camera-only · OTP · behavioural biometrics · evidence vault</div>
+      </div>
+      <div class="quarter">
+        <div class="q-label">Q3 · network effect</div>
+        <div class="q-title">Carrier integrations</div>
+        <div class="q-desc">Delhivery · Bluedart · OS&D · receipt QR signing · cross-merchant cluster</div>
+      </div>
+      <div class="quarter">
+        <div class="q-label">Q4 · moat</div>
+        <div class="q-title">Data network</div>
+        <div class="q-desc">Cross-retailer ring intelligence · 100k+ daily checks · ₹50cr ARR target</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 12 — Closing -->
+  <section class="slide close-card" data-slide="12">
+    <div class="winning-line">
+      "Our competitors built fraud detectors.<br/>
+      <span class="accent">We built the customer-care team's replacement.</span>"
+    </div>
+    <h2 style="margin-bottom: 1rem;">Thank you.</h2>
+    <div class="links">
+      <div class="link">github.com/sec_logistics</div>
+      <div class="link">localhost:5173/demo</div>
+    </div>
+    <div style="margin-top: 3rem;" class="muted">
+      Inconsistency Engine · 6 signals · DPDP-compliant · India-native
+    </div>
+  </section>
+
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let cur = 0;
+  let startMs = null;
+  const target = 90;  // 90-second target
+
+  const slidenum = document.getElementById('slidenum');
+  const progress = document.getElementById('progress');
+  const timerEl = document.getElementById('timer');
+
+  function show(i) {
+    cur = Math.max(0, Math.min(total - 1, i));
+    slides.forEach((s, k) => s.classList.toggle('active', k === cur));
+    slidenum.textContent = `${cur + 1} / ${total}`;
+    progress.style.width = `${((cur + 1) / total) * 100}%`;
+  }
+
+  function tick() {
+    if (!startMs) {
+      timerEl.textContent = `0:00 / 1:30`;
+      timerEl.classList.remove('over');
+      return;
+    }
+    const elapsed = Math.floor((Date.now() - startMs) / 1000);
+    const m = Math.floor(elapsed / 60);
+    const s = elapsed % 60;
+    timerEl.textContent = `${m}:${String(s).padStart(2, '0')} / 1:30`;
+    if (elapsed > target) timerEl.classList.add('over');
+    else timerEl.classList.remove('over');
+  }
+  setInterval(tick, 250);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+      if (cur === 0 && !startMs) startMs = Date.now();
+      show(cur + 1); e.preventDefault();
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      show(cur - 1); e.preventDefault();
+    } else if (e.key === 'r' || e.key === 'R') {
+      startMs = null; tick();
+    } else if (e.key === 'f' || e.key === 'F') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    } else if (e.key === 'Home') { show(0); }
+    else if (e.key === 'End') { show(total - 1); }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.link, .demo-cta')) return;
+    if (e.clientX > window.innerWidth / 2) show(cur + 1);
+    else show(cur - 1);
+  });
+
+  show(0);
+</script>
+</body>
+</html>
