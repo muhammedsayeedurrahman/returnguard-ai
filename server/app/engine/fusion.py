@@ -11,7 +11,7 @@ import sqlite3
 import uuid
 from . import (exif, image_text, linguistic, address, behavioural,
                friendly_fraud, wardrobing as wardrobing_module,
-               inr as inr_module, ela)
+               inr as inr_module, ela, image_trust)
 
 
 def _ring_check(claim_id: str, customer_id: str, evidence: list[dict],
@@ -142,6 +142,10 @@ async def score_claim_async(claim_id: str, claim_text: str, photo_path: str | No
         asyncio.to_thread(ela.score, photo_path),
     )
     evidence = list(results)
+
+    # Phase B: derive unified image-trust verdict from EXIF+ELA+image_text.
+    # Presentational only — weight=0, does not affect fusion score.
+    evidence.append(image_trust.derive_image_trust(evidence))
 
     raw = sum(ev["score"] * ev["weight"] for ev in evidence)
     final_raw = _apply_corroboration_multiplier([ev["score"] for ev in evidence], raw)

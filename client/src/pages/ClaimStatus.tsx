@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { getClaim, takeTurn } from "../lib/api";
+import Speedometer from "../components/Speedometer";
 
 type Evidence = {
   signal_name: string;
@@ -96,7 +97,21 @@ export default function ClaimStatus() {
         key={decision}
         className={`${banner.color} text-white rounded-xl p-6 flex items-center gap-5 animate-banner-in`}
       >
-        <ScoreRing score={data.claim.score ?? 0} />
+        {/* Customer-facing speedometer — NO numeric score, NO "fraud" wording. */}
+        <div className="bg-white/10 rounded-lg p-2">
+          <Speedometer
+            score={data.claim.score ?? 0}
+            showNumeric={false}
+            label={
+              decision === "APPROVE"
+                ? "Trusted"
+                : decision === "REJECT"
+                ? "Under review"
+                : "Quick check"
+            }
+            width={180}
+          />
+        </div>
         <div className="flex-1">
           <div className="text-2xl font-semibold">{banner.title}</div>
           <div className="text-white/90 mt-1">{banner.sub}</div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { adminQueue, adminRings, adminStats, adminReview } from "../lib/api";
 import MapView from "../components/MapView";
 
@@ -105,7 +106,11 @@ export default function AdminDashboard() {
           <tbody className="divide-y divide-slate-100">
             {queue.map((c) => (
               <tr key={c.id} className="hover:bg-slate-50">
-                <td className="px-5 py-2 font-mono text-xs text-slate-600">{c.id}</td>
+                <td className="px-5 py-2 font-mono text-xs text-slate-600">
+                  <Link to={`/admin/claim/${c.id}`} className="text-indigo-600 hover:underline">
+                    {c.id}
+                  </Link>
+                </td>
                 <td className="px-5 py-2 text-slate-700">{c.customer_id}</td>
                 <td className="px-5 py-2 text-slate-700">{c.product_name}</td>
                 <td className="px-5 py-2">

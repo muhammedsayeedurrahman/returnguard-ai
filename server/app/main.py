@@ -51,6 +51,7 @@ async def submit_claim(
     claim_text: str = Form(""),
     capture_method: str = Form("file_upload"),
     photo: UploadFile | None = File(None),
+    video: UploadFile | None = File(None),
 ):
     claim_id = f"claim_{uuid.uuid4().hex[:8]}"
     photo_path: str | None = None
@@ -58,6 +59,13 @@ async def submit_claim(
         photo_path = str(UPLOAD_DIR / f"{claim_id}_{photo.filename}")
         with open(photo_path, "wb") as f:
             f.write(await photo.read())
+    video_path: str | None = None
+    if video and video.filename:
+        video_dir = UPLOAD_DIR / "videos"
+        video_dir.mkdir(parents=True, exist_ok=True)
+        video_path = str(video_dir / f"{claim_id}.webm")
+        with open(video_path, "wb") as f:
+            f.write(await video.read())
 
     conn = get_db()
     order = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
@@ -73,10 +81,10 @@ async def submit_claim(
 
     conn.execute(
         "INSERT INTO claims (id, order_id, customer_id, reason_code, claim_text, "
-        "photo_path, capture_method) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "photo_path, video_path, capture_method) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         (claim_id, order_id, order["customer_id"], reason_code, claim_text,
-         photo_path, capture_method),
+         photo_path, video_path, capture_method),
     )
     conn.commit()
 
@@ -250,6 +258,23 @@ async def carrier_webhook(
     conn.commit()
     conn.close()
     return {"ok": True, "data": {"event_recorded": event_type}}
+
+
+@app.get("/api/v1/claims/{claim_id}/video")
+def stream_claim_video(claim_id: str):
+    """Return the proof-video the customer recorded with their claim."""
+    conn = get_db()
+    row = conn.execute(
+        "SELECT video_path FROM claims WHERE id = ?", (claim_id,),
+    ).fetchone()
+    conn.close()
+    if not row or not row["video_path"]:
+        raise HTTPException(404, "No video on file for this claim")
+    path = Path(row["video_path"])
+    if not path.exists():
+        raise HTTPException(404, "Video file missing")
+    return FileResponse(str(path), media_type="video/webm",
+                        filename=f"{claim_id}.webm")
 
 
 @app.get("/api/v1/receipts/{order_id}/download")

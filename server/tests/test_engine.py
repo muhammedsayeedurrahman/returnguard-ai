@@ -35,7 +35,7 @@ def _make_exif_jpeg(exif_date_str: str) -> bytes:
 
 def _insert_customer(db, cust_id, days_old=300):
     db.execute(
-        "INSERT INTO customers (id, email_hash, phone_hash, return_count_30d, created_at) "
+        "INSERT OR REPLACE INTO customers (id, email_hash, phone_hash, return_count_30d, created_at) "
         "VALUES (?, ?, ?, 0, datetime('now', ?))",
         (cust_id, f"h_{cust_id}", f"p_{cust_id}", f"-{days_old} days"),
     )
@@ -43,7 +43,7 @@ def _insert_customer(db, cust_id, days_old=300):
 
 def _insert_order(db, order_id, cust_id, address, pincode, value=5000, product="Test Earbuds"):
     db.execute(
-        "INSERT INTO orders (id, customer_id, product_name, product_category, value_inr, "
+        "INSERT OR REPLACE INTO orders (id, customer_id, product_name, product_category, value_inr, "
         "ordered_at, delivered_at, shipping_address, shipping_addr_hash, pincode, status) "
         "VALUES (?, ?, ?, 'electronics', ?, datetime('now','-7 days'), "
         "datetime('now','-3 days'), ?, ?, ?, 'delivered')",

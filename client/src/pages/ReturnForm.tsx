@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { submitClaim } from "../lib/api";
+import VideoRecorder from "../components/VideoRecorder";
 
 export default function ReturnForm() {
   const navigate = useNavigate();
@@ -9,6 +10,8 @@ export default function ReturnForm() {
   const [reason, setReason] = useState(params.get("reason") || "damaged");
   const [text, setText] = useState(params.get("text") || "");
   const [photo, setPhoto] = useState<File | null>(null);
+  const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
+  const [showRecorder, setShowRecorder] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,6 +25,10 @@ export default function ReturnForm() {
       fd.append("reason_code", reason);
       fd.append("claim_text", text);
       if (photo) fd.append("photo", photo);
+      if (videoBlob) {
+        fd.append("video", videoBlob, "proof.webm");
+        fd.append("capture_method", "live_camera");
+      }
       const r = await submitClaim(fd);
       if (!r.ok) {
         setError(r.detail || "Submission failed");
@@ -94,6 +101,43 @@ export default function ReturnForm() {
             onChange={(e) => setPhoto(e.target.files?.[0] || null)}
             className="w-full text-sm text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Proof video (optional)
+          </label>
+          {!showRecorder && !videoBlob && (
+            <button
+              type="button"
+              onClick={() => setShowRecorder(true)}
+              className="w-full text-left px-3 py-2 border border-dashed border-slate-300 rounded-md text-sm text-slate-600 hover:bg-slate-50"
+            >
+              🎥 Record a short proof video (≤30s) — speeds up approval for high-value claims
+            </button>
+          )}
+          {showRecorder && !videoBlob && (
+            <VideoRecorder
+              onRecorded={(blob) => {
+                setVideoBlob(blob);
+                setShowRecorder(false);
+              }}
+            />
+          )}
+          {videoBlob && (
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
+              <span className="text-sm text-emerald-800 flex-1">
+                ✓ Proof video attached ({(videoBlob.size / 1024).toFixed(0)} KB)
+              </span>
+              <button
+                type="button"
+                onClick={() => setVideoBlob(null)}
+                className="text-xs text-emerald-700 hover:text-emerald-900"
+              >
+                Remove
+              </button>
+            </div>
+          )}
         </div>
 
         {error && (
