@@ -48,3 +48,20 @@ export async function adminMap() {
   const r = await fetch(`${BASE}/admin/map`);
   return r.json();
 }
+
+export async function adminReview(claimId: string, outcome: "CONFIRMED_LEGIT" | "CONFIRMED_FRAUD" | "ESCALATED", notes = "") {
+  const fd = new FormData();
+  fd.append("claim_id", claimId);
+  fd.append("outcome", outcome);
+  fd.append("notes", notes);
+  const r = await fetch(`${BASE}/admin/review`, { method: "POST", body: fd });
+  return r.json();
+}
+
+export async function verifyReceipt(orderId: string, file: File) {
+  const fd = new FormData();
+  fd.append("order_id", orderId);
+  fd.append("receipt", file);
+  const r = await fetch(`${BASE}/receipts/verify`, { method: "POST", body: fd });
+  return r.json();
+}

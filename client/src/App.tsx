@@ -4,6 +4,7 @@ export default function App() {
   const loc = useLocation();
   const tabs = [
     { to: "/return", label: "Return Portal" },
+    { to: "/billing", label: "Receipt Check" },
     { to: "/admin", label: "Fraud Ops" },
     { to: "/demo", label: "Demo" },
   ];

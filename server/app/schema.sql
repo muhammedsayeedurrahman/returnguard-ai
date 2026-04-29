@@ -87,3 +87,100 @@ CREATE TABLE IF NOT EXISTS evaluation_turns (
 CREATE INDEX IF NOT EXISTS idx_addr_hash ON address_signatures(hash);
 CREATE INDEX IF NOT EXISTS idx_claims_customer ON claims(customer_id);
 CREATE INDEX IF NOT EXISTS idx_claims_decision ON claims(decision);
+
+-- ─── Phase 4: Receipt verification ─────────────────────────────────────
+CREATE TABLE IF NOT EXISTS receipt_hashes (
+  order_id        TEXT PRIMARY KEY,
+  customer_id     TEXT,
+  amount_inr      REAL,
+  pdf_hash_sha256 TEXT NOT NULL,
+  pdf_hash_md5    TEXT,
+  issued_at       TEXT DEFAULT (datetime('now'))
+);
+
+-- ─── Phase 5: Friendly fraud (chargeback abuse) ───────────────────────
+CREATE TABLE IF NOT EXISTS payment_risk_profiles (
+  customer_id            TEXT PRIMARY KEY,
+  risk_tier              TEXT NOT NULL DEFAULT 'LOW',
+  claim_count_180d       INTEGER DEFAULT 0,
+  chargeback_count       INTEGER DEFAULT 0,
+  last_chargeback_at     TEXT,
+  largest_chargeback_inr REAL DEFAULT 0,
+  tier_set_at            TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS chargeback_events (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id         TEXT,
+  order_id            TEXT,
+  payment_method      TEXT,
+  amount_inr          REAL,
+  chargeback_reason   TEXT,
+  filed_at            TEXT DEFAULT (datetime('now')),
+  resolution          TEXT
+);
+
+-- ─── Phase 6: Wardrobing ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS return_history (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id       TEXT,
+  order_id          TEXT,
+  claim_id          TEXT,
+  product_category  TEXT,
+  order_value_inr   REAL,
+  days_held         INTEGER,
+  wardrobing_score  INTEGER DEFAULT 0,
+  filed_at          TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_rh_customer_cat
+  ON return_history(customer_id, product_category);
+
+CREATE TABLE IF NOT EXISTS category_return_baselines (
+  category                  TEXT PRIMARY KEY,
+  median_return_gap_days    REAL,
+  wardrobing_peak_months    TEXT,
+  restocking_threshold_days INTEGER,
+  high_value_threshold_inr  REAL
+);
+
+-- ─── Phase 7: INR (Item Not Received) ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS shipment_deliveries (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id        TEXT,
+  customer_id     TEXT,
+  carrier         TEXT,
+  shipment_id     TEXT,
+  delivered_at    TEXT,
+  gps_lat         REAL,
+  gps_lng         REAL,
+  otp_confirmed   INTEGER DEFAULT 0,
+  scan_location   TEXT,
+  created_at      TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS engagement_events (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id TEXT,
+  order_id    TEXT,
+  event_type  TEXT,
+  occurred_at TEXT,
+  created_at  TEXT DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_engagement_order ON engagement_events(order_id);
+
+CREATE TABLE IF NOT EXISTS pincode_intelligence (
+  pincode      TEXT PRIMARY KEY,
+  rto_rate     REAL,
+  inr_rate     REAL,
+  tier         TEXT DEFAULT 'TIER2'
+);
+
+-- ─── Phase 8: Human review labels ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS review_labels (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  claim_id    TEXT,
+  reviewer_id TEXT,
+  outcome     TEXT,
+  notes       TEXT,
+  created_at  TEXT DEFAULT (datetime('now'))
+);

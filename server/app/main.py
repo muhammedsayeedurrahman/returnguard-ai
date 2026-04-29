@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 import uuid
+from datetime import datetime
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -78,9 +79,13 @@ async def submit_claim(
     )
     conn.commit()
 
+    # Pass reason_code via order dict so wardrobing/INR scorers can branch on it
+    order_dict = dict(order)
+    order_dict["reason_code"] = reason_code
+
     # Bug 1: async fusion runs signals concurrently
     score, decision, evidence = await score_claim_async(
-        claim_id, claim_text, photo_path, dict(order), conn, capture_method,
+        claim_id, claim_text, photo_path, order_dict, conn, capture_method,
     )
 
     conn.execute(
@@ -94,6 +99,15 @@ async def submit_claim(
             (claim_id, ev["signal"], ev["verdict"], ev["detail"], ev["weight"],
              json.dumps(ev.get("raw", {}))),
         )
+    conn.commit()
+
+    # Phase 6: write return_history row for wardrobing future-detection
+    from .engine.wardrobing import record_return_history
+    wardrobing_ev = next((e for e in evidence if e["signal"] == "wardrobing"), None)
+    record_return_history(
+        order["customer_id"], order_id, claim_id, dict(order),
+        wardrobing_ev["score"] if wardrobing_ev else 0, conn,
+    )
     conn.commit()
 
     session_id: str | None = None
@@ -189,6 +203,117 @@ def admin_rings():
         out.append(d)
     conn.close()
     return {"ok": True, "data": out}
+
+
+@app.post("/api/v1/webhooks/chargeback")
+async def chargeback_webhook(
+    customer_id: str = Form(...),
+    order_id: str = Form(...),
+    amount_inr: float = Form(...),
+    payment_method: str = Form("credit_card"),
+    reason: str = Form("unauthorised"),
+):
+    from .engine.friendly_fraud import record_chargeback
+    conn = get_db()
+    result = record_chargeback(customer_id, order_id, amount_inr,
+                                payment_method, reason, conn)
+    conn.close()
+    return {"ok": True, "data": result}
+
+
+@app.post("/api/v1/webhooks/carrier")
+async def carrier_webhook(
+    order_id: str = Form(...),
+    carrier: str = Form(...),
+    event_type: str = Form(...),
+    shipment_id: str = Form(""),
+    gps_lat: float | None = Form(None),
+    gps_lng: float | None = Form(None),
+    otp_confirmed: bool = Form(False),
+    delivered_at: str = Form(""),
+):
+    conn = get_db()
+    if event_type == "SHIPMENT_DELIVERED":
+        order = conn.execute("SELECT customer_id FROM orders WHERE id = ?",
+                             (order_id,)).fetchone()
+        cust = order["customer_id"] if order else ""
+        conn.execute(
+            "INSERT INTO shipment_deliveries "
+            "(order_id, customer_id, carrier, shipment_id, delivered_at, "
+            " gps_lat, gps_lng, otp_confirmed) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (order_id, cust, carrier, shipment_id,
+             delivered_at or datetime.now().isoformat(),
+             gps_lat, gps_lng, int(otp_confirmed)),
+        )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "data": {"event_recorded": event_type}}
+
+
+@app.post("/api/v1/receipts/verify")
+async def verify_receipt(
+    order_id: str = Form(...),
+    receipt: UploadFile = File(...),
+):
+    """Standalone receipt verification endpoint — used by Receipt Check page."""
+    path = str(UPLOAD_DIR / f"receipt_{uuid.uuid4().hex[:8]}_{receipt.filename}")
+    with open(path, "wb") as f:
+        f.write(await receipt.read())
+
+    conn = get_db()
+    order = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+    if not order:
+        conn.close()
+        raise HTTPException(404, "Order not found")
+    from .engine.receipt import score as receipt_score
+    result = receipt_score(path, order_id, order["value_inr"], conn)
+    conn.close()
+    return {"ok": True, "data": result}
+
+
+@app.post("/api/v1/admin/review")
+async def submit_review(
+    claim_id: str = Form(...),
+    reviewer_id: str = Form("admin"),
+    outcome: str = Form(...),
+    notes: str = Form(""),
+):
+    """Human reviewer override — CONFIRMED_LEGIT / CONFIRMED_FRAUD / ESCALATED."""
+    if outcome not in ("CONFIRMED_LEGIT", "CONFIRMED_FRAUD", "ESCALATED"):
+        raise HTTPException(400, "Invalid outcome")
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO review_labels (claim_id, reviewer_id, outcome, notes) "
+        "VALUES (?, ?, ?, ?)",
+        (claim_id, reviewer_id, outcome, notes),
+    )
+    if outcome == "CONFIRMED_FRAUD":
+        conn.execute("UPDATE claims SET decision = 'REJECT' WHERE id = ?", (claim_id,))
+    elif outcome == "CONFIRMED_LEGIT":
+        conn.execute("UPDATE claims SET decision = 'APPROVE' WHERE id = ?", (claim_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "data": {"outcome": outcome}}
+
+
+@app.get("/api/v1/customers/{customer_id}/payment-methods")
+def get_allowed_payment_methods(customer_id: str):
+    conn = get_db()
+    row = conn.execute(
+        "SELECT risk_tier FROM payment_risk_profiles WHERE customer_id = ?",
+        (customer_id,),
+    ).fetchone()
+    conn.close()
+    tier = row["risk_tier"] if row else "LOW"
+    restrictions = {
+        "LOW":     ["cod","upi","netbanking","debit_card","credit_card","bnpl","wallet"],
+        "MEDIUM":  ["cod","upi","netbanking","debit_card","credit_card","wallet"],
+        "HIGH":    ["cod","upi","netbanking"],
+        "BLOCKED": ["cod"],
+    }
+    return {"ok": True, "data": {"risk_tier": tier,
+                                 "allowed_methods": restrictions.get(tier, [])}}
 
 
 @app.get("/api/v1/admin/map")

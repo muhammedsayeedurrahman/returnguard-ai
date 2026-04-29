@@ -53,6 +53,42 @@ const SCENARIOS: Scenario[] = [
     expectedDecision: "REJECT",
     color: "bg-red-600 hover:bg-red-700",
   },
+  {
+    key: "wardrobing",
+    label: "Run Wardrobing (₹45K lehenga, returned 1 day later)",
+    description:
+      "High-value apparel returned 1 day after delivery during wedding season — classic wardrobing.",
+    orderId: "ord_wardrobing_001",
+    reasonCode: "damaged",
+    claimText: "The lehenga doesn't fit as expected, returning it.",
+    photoFilename: null,
+    expectedDecision: "BORDERLINE",
+    color: "bg-amber-600 hover:bg-amber-700",
+  },
+  {
+    key: "friendly_fraud",
+    label: "Run Friendly Fraud (3 prior chargebacks)",
+    description:
+      "Customer with 3 prior chargebacks files an INR claim on a ₹1.3 lakh iPhone.",
+    orderId: "ord_friendly_001",
+    reasonCode: "not_received",
+    claimText: "I never received this order.",
+    photoFilename: null,
+    expectedDecision: "REJECT",
+    color: "bg-purple-600 hover:bg-purple-700",
+  },
+  {
+    key: "inr_abuse",
+    label: "Run INR Abuse (claim 1h after delivery)",
+    description:
+      "Customer with 2 prior INR claims files another, 1 hour after carrier GPS-confirmed delivery.",
+    orderId: "ord_inr_001",
+    reasonCode: "not_received",
+    claimText: "Package shows delivered but I was home all day, nothing arrived.",
+    photoFilename: null,
+    expectedDecision: "REJECT",
+    color: "bg-pink-600 hover:bg-pink-700",
+  },
 ];
 
 export default function DemoPanel() {

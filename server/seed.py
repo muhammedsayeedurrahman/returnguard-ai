@@ -225,8 +225,33 @@ def main():
 
     print("Clearing prior seed data…")
     for table in ["claim_evidence", "claims", "evaluation_turns", "evaluation_sessions",
-                  "ring_clusters", "address_signatures", "orders", "customers"]:
-        conn.execute(f"DELETE FROM {table}")
+                  "ring_clusters", "address_signatures", "orders", "customers",
+                  "return_history", "chargeback_events", "payment_risk_profiles",
+                  "shipment_deliveries", "engagement_events", "review_labels"]:
+        try:
+            conn.execute(f"DELETE FROM {table}")
+        except sqlite3.OperationalError:
+            pass
+    conn.commit()
+
+    print("Seeding category return baselines (wardrobing thresholds)…")
+    CATEGORY_BASELINES = [
+        ("apparel",     7,  '["11","12","1","2","4","5"]', 3,  3000),
+        ("shoes",       5,  '["11","12","1","2"]',          3,  5000),
+        ("jewellery",   3,  '["11","12","1","2","4","5"]', 2,  8000),
+        ("electronics", 14, '["6","7","12"]',                5,  15000),
+        ("appliance",   21, '[]',                            7,  10000),
+        ("beauty",      7,  '[]',                            5,  1000),
+        ("baby",        14, '[]',                            7,  2000),
+        ("fashion",     5,  '["11","12","1","2"]',           2,  4000),
+    ]
+    for row in CATEGORY_BASELINES:
+        conn.execute(
+            "INSERT OR REPLACE INTO category_return_baselines "
+            "(category, median_return_gap_days, wardrobing_peak_months, "
+            " restocking_threshold_days, high_value_threshold_inr) "
+            "VALUES (?, ?, ?, ?, ?)", row,
+        )
     conn.commit()
 
     print("Seeding 30 legitimate customers + history…")
@@ -243,6 +268,75 @@ def main():
 
     print("Seeding 4-account ring at shared Bengaluru address…")
     seed_ring(conn)
+
+    print("Seeding wardrobing demo (Sabyasachi lehenga, returned 1 day after delivery)…")
+    _insert_customer(conn, "cust_wardrobing", days_old=200, return_count=2)
+    _insert_order(
+        conn, "ord_wardrobing_001", "cust_wardrobing",
+        ("Sabyasachi Lehenga", "apparel", 45000),
+        "Flat 12, Juhu Road, Mumbai, 400049", "400049",
+        ordered_days_ago=3, delivered_days_ago=1,
+    )
+
+    print("Seeding friendly fraud demo (3 prior chargebacks, HIGH tier)…")
+    _insert_customer(conn, "cust_ff_001", days_old=90, return_count=3)
+    _insert_order(
+        conn, "ord_friendly_001", "cust_ff_001",
+        ("Apple iPhone 15 Pro", "electronics", 134900),
+        "Flat 22, Koramangala, Bengaluru, 560034", "560034",
+        ordered_days_ago=5, delivered_days_ago=2,
+    )
+    for i in range(3):
+        conn.execute(
+            "INSERT INTO chargeback_events "
+            "(customer_id, order_id, payment_method, amount_inr, "
+            " chargeback_reason, filed_at) "
+            "VALUES (?, ?, 'credit_card', 15000, 'unauthorised', "
+            " datetime('now', ?))",
+            ("cust_ff_001", f"ord_ff_old_{i}", f"-{(i+1)*30} days"),
+        )
+    conn.execute(
+        "INSERT OR REPLACE INTO payment_risk_profiles "
+        "(customer_id, chargeback_count, risk_tier, last_chargeback_at, "
+        " largest_chargeback_inr) "
+        "VALUES ('cust_ff_001', 3, 'HIGH', datetime('now', '-30 days'), 15000)"
+    )
+
+    print("Seeding INR demo (claim filed 1h after delivery)…")
+    _insert_customer(conn, "cust_inr_001", days_old=180, return_count=2)
+    _insert_order(
+        conn, "ord_inr_001", "cust_inr_001",
+        ("Bose QC45 Headphones", "electronics", 28900),
+        "Flat 5B, Sector 14, Gurgaon, 122001", "122001",
+        ordered_days_ago=4, delivered_days_ago=0,  # delivered today
+    )
+    # Carrier delivered with GPS just now
+    conn.execute(
+        "INSERT INTO shipment_deliveries "
+        "(order_id, customer_id, carrier, delivered_at, gps_lat, gps_lng, otp_confirmed) "
+        "VALUES ('ord_inr_001', 'cust_inr_001', 'Delhivery', "
+        " datetime('now', '-1 hour'), 28.4595, 77.0266, 0)"
+    )
+    # 2 prior INR claims for this customer (orders inserted first to satisfy FK)
+    for i in range(2):
+        conn.execute(
+            "INSERT OR REPLACE INTO orders (id, customer_id, product_name, "
+            " product_category, value_inr, ordered_at, delivered_at, "
+            " shipping_address, shipping_addr_hash, pincode, status) "
+            "VALUES (?, ?, 'Old INR Order', 'electronics', 5000, "
+            " datetime('now', ?), datetime('now', ?), "
+            " 'Old Address', '', '122001', 'delivered')",
+            (f"ord_inr_old_{i}", "cust_inr_001",
+             f"-{(i+1)*60+5} days", f"-{(i+1)*60+1} days"),
+        )
+        conn.execute(
+            "INSERT INTO claims (id, order_id, customer_id, reason_code, "
+            " claim_text, score, decision, filed_at) "
+            "VALUES (?, ?, ?, 'not_received', 'Package never arrived', "
+            " 55, 'BORDERLINE', datetime('now', ?))",
+            (f"claim_inr_old_{i}", f"ord_inr_old_{i}", "cust_inr_001",
+             f"-{(i+1)*60} days"),
+        )
 
     conn.commit()
     counts = {}

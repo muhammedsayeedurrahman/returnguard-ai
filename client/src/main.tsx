@@ -6,6 +6,7 @@ import ReturnForm from "./pages/ReturnForm";
 import ClaimStatus from "./pages/ClaimStatus";
 import AdminDashboard from "./pages/AdminDashboard";
 import DemoPanel from "./pages/DemoPanel";
+import BillingVerification from "./pages/BillingVerification";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="status/:claimId" element={<ClaimStatus />} />
           <Route path="admin" element={<AdminDashboard />} />
           <Route path="demo" element={<DemoPanel />} />
+          <Route path="billing" element={<BillingVerification />} />
         </Route>
       </Routes>
     </BrowserRouter>

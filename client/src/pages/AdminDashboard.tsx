@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { adminQueue, adminRings, adminStats } from "../lib/api";
+import { adminQueue, adminRings, adminStats, adminReview } from "../lib/api";
 import MapView from "../components/MapView";
 
 export default function AdminDashboard() {
@@ -99,6 +99,7 @@ export default function AdminDashboard() {
               <th className="px-5 py-2">Score</th>
               <th className="px-5 py-2">Decision</th>
               <th className="px-5 py-2">Ring</th>
+              <th className="px-5 py-2 text-right">Review</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -125,6 +126,26 @@ export default function AdminDashboard() {
                 </td>
                 <td className="px-5 py-2 text-xs text-amber-700">
                   {c.ring_cluster_id || "—"}
+                </td>
+                <td className="px-5 py-2 text-right">
+                  <div className="inline-flex gap-1">
+                    <button
+                      onClick={async () => {
+                        await adminReview(c.id, "CONFIRMED_LEGIT");
+                        refresh();
+                      }}
+                      className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded hover:bg-emerald-200 transition"
+                      title="Mark legit"
+                    >✓ Legit</button>
+                    <button
+                      onClick={async () => {
+                        await adminReview(c.id, "CONFIRMED_FRAUD");
+                        refresh();
+                      }}
+                      className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 transition"
+                      title="Mark fraud"
+                    >✗ Fraud</button>
+                  </div>
                 </td>
               </tr>
             ))}

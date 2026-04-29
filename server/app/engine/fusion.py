@@ -9,7 +9,9 @@ import asyncio
 import json
 import sqlite3
 import uuid
-from . import exif, image_text, linguistic, address, behavioural
+from . import (exif, image_text, linguistic, address, behavioural,
+               friendly_fraud, wardrobing as wardrobing_module,
+               inr as inr_module, ela)
 
 
 def _ring_check(claim_id: str, customer_id: str, evidence: list[dict],
@@ -61,6 +63,40 @@ def _ring_check(claim_id: str, customer_id: str, evidence: list[dict],
     return ring_id
 
 
+def score_ring_velocity_stub(claim_id: str, customer_id: str,
+                              conn: sqlite3.Connection) -> dict:
+    """Placeholder for the Phase-7+ ring_velocity scorer (Redis-backed).
+
+    Reads the basic 30-day claim cluster from existing tables; full
+    velocity scoring (per-minute claim bursts, device-IP correlations)
+    requires Redis + browser fingerprinting which is post-hackathon.
+    """
+    weight = 0.10
+    cluster_count = conn.execute(
+        "SELECT COUNT(*) AS c FROM claims "
+        "WHERE customer_id IN ("
+        "  SELECT customer_id FROM address_signatures "
+        "  WHERE hash IN (SELECT hash FROM address_signatures WHERE customer_id = ?) "
+        ") AND filed_at >= datetime('now', '-7 days')",
+        (customer_id,),
+    ).fetchone()["c"] or 0
+
+    if cluster_count >= 5:
+        return {"signal": "ring_velocity", "verdict": "FAIL", "score": 70,
+                "weight": weight,
+                "detail": f"{cluster_count} claims in 7 days from co-located accounts",
+                "raw": {"cluster_count_7d": cluster_count}}
+    if cluster_count >= 3:
+        return {"signal": "ring_velocity", "verdict": "WARN", "score": 35,
+                "weight": weight,
+                "detail": f"{cluster_count} claims in 7 days from co-located accounts",
+                "raw": {"cluster_count_7d": cluster_count}}
+    return {"signal": "ring_velocity", "verdict": "OK", "score": 0,
+            "weight": weight,
+            "detail": "Velocity within normal range",
+            "raw": {"cluster_count_7d": cluster_count}}
+
+
 def _apply_corroboration_multiplier(scores: list[int], raw: float) -> float:
     """Multi-tier multiplier — 3+ high signals = 1.25×, 2 = 1.12×, 1 = 1.0×."""
     high = [s for s in scores if s >= 60]
@@ -87,6 +123,10 @@ async def score_claim_async(claim_id: str, claim_text: str, photo_path: str | No
     """
     customer_id = order["customer_id"]
 
+    reason_code = order.get("reason_code", "")
+    payment_method = order.get("payment_method", "credit_card")
+    from datetime import datetime as _dt
+
     # Bug 1 fix: signals run concurrently via to_thread (each is sync but IO-bound).
     results = await asyncio.gather(
         asyncio.to_thread(exif.score, photo_path, order, capture_method),
@@ -94,11 +134,29 @@ async def score_claim_async(claim_id: str, claim_text: str, photo_path: str | No
         asyncio.to_thread(linguistic.score, claim_text, customer_id, conn),
         asyncio.to_thread(address.score, order, customer_id, conn),
         asyncio.to_thread(behavioural.score, customer_id, conn),
+        asyncio.to_thread(score_ring_velocity_stub, claim_id, customer_id, conn),
+        asyncio.to_thread(friendly_fraud.score, customer_id, payment_method, conn),
+        asyncio.to_thread(wardrobing_module.score, customer_id, order, reason_code, conn),
+        asyncio.to_thread(inr_module.score, customer_id, order["id"] if "id" in order else "",
+                          order, _dt.now().isoformat(), conn),
+        asyncio.to_thread(ela.score, photo_path),
     )
     evidence = list(results)
 
     raw = sum(ev["score"] * ev["weight"] for ev in evidence)
     final_raw = _apply_corroboration_multiplier([ev["score"] for ev in evidence], raw)
+
+    # Single-signal escalation floor: a strong FAIL on any single signal must at
+    # minimum land BORDERLINE so a human reviewer or AI agent sees it. The "no
+    # single signal blocks alone" principle is preserved — REJECT (>=65) still
+    # requires corroboration. This only lifts to BORDERLINE.
+    max_single = max((ev["score"] for ev in evidence if ev.get("verdict") == "FAIL"),
+                     default=0)
+    if max_single >= 95:
+        final_raw = max(final_raw, 50.0)
+    elif max_single >= 80:
+        final_raw = max(final_raw, 38.0)
+
     final = int(round(min(final_raw, 100.0)))
 
     ring_id = _ring_check(claim_id, customer_id, evidence, conn)
