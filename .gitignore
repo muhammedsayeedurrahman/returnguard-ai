@@ -26,6 +26,8 @@ venv/
 env/
 ENV/
 .venv/
+*venv*/
+install/
 *.egg-info/
 .pytest_cache/
 .coverage

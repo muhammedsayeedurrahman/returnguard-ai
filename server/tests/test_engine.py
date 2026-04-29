@@ -5,6 +5,12 @@ Run: pytest -v from the server/ directory.
 import io
 from PIL import Image
 from app.engine.address import hash_address
+from app.engine.address_intel import validate_address
+
+
+def _canonical_hash(raw: str) -> str:
+    v = validate_address(raw, region_code="IN")
+    return hash_address(v.canonical or raw)
 
 
 SHARED_RING_ADDRESS = "Flat 7C, 88 Brigade Road, Bengaluru, 560025"
@@ -41,13 +47,13 @@ def _insert_order(db, order_id, cust_id, address, pincode, value=5000, product="
         "ordered_at, delivered_at, shipping_address, shipping_addr_hash, pincode, status) "
         "VALUES (?, ?, ?, 'electronics', ?, datetime('now','-7 days'), "
         "datetime('now','-3 days'), ?, ?, ?, 'delivered')",
-        (order_id, cust_id, product, value, address, hash_address(address), pincode),
+        (order_id, cust_id, product, value, address, _canonical_hash(address), pincode),
     )
 
 
 def _seed_ring_baseline(db):
     """3 prior ring claims at the shared address. The 4th is what we'll submit live."""
-    addr_hash = hash_address(SHARED_RING_ADDRESS)
+    addr_hash = _canonical_hash(SHARED_RING_ADDRESS)
     for i in range(3):
         cust_id = f"cust_ring_{i+1:02d}"
         order_id = f"ord_ring_{i+1:02d}"

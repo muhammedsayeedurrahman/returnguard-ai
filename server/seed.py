@@ -9,6 +9,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from app.db import init_db, get_db
 from app.engine.address import hash_address
+from app.engine.address_intel import validate_address
+
+
+def canonical_hash(raw_address: str) -> str:
+    """Same canonical-hashing path as the live engine: Google validate → hash canonical."""
+    v = validate_address(raw_address, region_code="IN")
+    base = v.canonical if v.canonical else raw_address
+    return hash_address(base)
 
 random.seed(42)
 
@@ -80,7 +88,7 @@ def _insert_order(conn: sqlite3.Connection, order_id: str, cust_id: str,
         "value_inr, ordered_at, delivered_at, shipping_address, shipping_addr_hash, pincode, status) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'delivered')",
         (order_id, cust_id, name, category, value, ordered, delivered,
-         address, hash_address(address), pincode),
+         address, canonical_hash(address), pincode),
     )
 
 
@@ -174,7 +182,7 @@ def seed_ring(conn: sqlite3.Connection) -> None:
             conn.execute(
                 "INSERT INTO address_signatures (hash, customer_id, pincode, created_at) "
                 "VALUES (?, ?, ?, ?)",
-                (hash_address(shared_address), cust_id, pincode, filed),
+                (canonical_hash(shared_address), cust_id, pincode, filed),
             )
 
 
