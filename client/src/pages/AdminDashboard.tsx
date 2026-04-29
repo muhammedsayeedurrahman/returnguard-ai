@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { adminQueue, adminRings, adminStats } from "../lib/api";
+import MapView from "../components/MapView";
 
 export default function AdminDashboard() {
   const [queue, setQueue] = useState<any[]>([]);
@@ -42,6 +43,9 @@ export default function AdminDashboard() {
           />
         </div>
       )}
+
+      {/* Map view — geographic distribution */}
+      <MapView />
 
       {/* Ring clusters */}
       <div className="bg-white rounded-xl border border-slate-200">

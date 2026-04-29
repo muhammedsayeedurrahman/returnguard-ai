@@ -43,3 +43,8 @@ export async function adminStats() {
   const r = await fetch(`${BASE}/admin/stats`);
   return r.json();
 }
+
+export async function adminMap() {
+  const r = await fetch(`${BASE}/admin/map`);
+  return r.json();
+}

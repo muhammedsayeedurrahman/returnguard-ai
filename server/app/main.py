@@ -179,6 +179,66 @@ def admin_rings():
     return {"ok": True, "data": out}
 
 
+@app.get("/api/v1/admin/map")
+def admin_map():
+    """Return all claims with geographic data for map visualisation.
+
+    Each point includes lat/lng (from address validation evidence or
+    pincode lookup fallback), decision tier, and ring membership.
+    """
+    from .engine.address_intel import geocode_from_pincode
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT c.id AS claim_id, c.customer_id, c.decision, c.score, "
+        "c.ring_cluster_id, c.filed_at, "
+        "o.product_name, o.value_inr, o.shipping_address, o.pincode, "
+        "ce.raw_json AS addr_evidence "
+        "FROM claims c "
+        "JOIN orders o ON c.order_id = o.id "
+        "LEFT JOIN claim_evidence ce ON ce.claim_id = c.id "
+        "  AND ce.signal_name = 'address' "
+        "ORDER BY c.filed_at DESC "
+        "LIMIT 200"
+    ).fetchall()
+
+    points: list[dict] = []
+    for r in rows:
+        d = dict(r)
+        lat: float | None = None
+        lng: float | None = None
+        canonical = d.get("shipping_address")
+        if d.get("addr_evidence"):
+            try:
+                ev = json.loads(d["addr_evidence"])
+                gc = ev.get("geocode")
+                if gc and gc[0] is not None:
+                    lat, lng = float(gc[0]), float(gc[1])
+                canonical = ev.get("google_canonical") or canonical
+            except (json.JSONDecodeError, TypeError, ValueError, KeyError):
+                pass
+        if lat is None:
+            g = geocode_from_pincode(d.get("pincode") or "")
+            if g:
+                lat, lng = g
+        if lat is None:
+            continue
+        points.append({
+            "claim_id": d["claim_id"],
+            "customer_id": d["customer_id"],
+            "decision": d["decision"] or "PENDING",
+            "score": d["score"] or 0,
+            "ring_cluster_id": d["ring_cluster_id"],
+            "product_name": d["product_name"],
+            "value_inr": d["value_inr"],
+            "address": canonical,
+            "pincode": d["pincode"],
+            "lat": lat,
+            "lng": lng,
+        })
+    conn.close()
+    return {"ok": True, "data": points}
+
+
 @app.get("/api/v1/admin/stats")
 def admin_stats():
     conn = get_db()

@@ -1,4 +1,54 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+/* ─── Map pin styles ─── */
+
+.map-ring-pin {
+  width: 22px; height: 22px;
+  background: #dc2626;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7), 0 2px 6px rgba(0,0,0,0.3);
+  animation: map-ring-pulse 2.2s ease-out infinite;
+}
+
+@keyframes map-ring-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7), 0 2px 6px rgba(0,0,0,0.3); }
+  70%  { box-shadow: 0 0 0 14px rgba(220, 38, 38, 0), 0 2px 6px rgba(0,0,0,0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0), 0 2px 6px rgba(0,0,0,0.3); }
+}
+
+.map-legit-pin {
+  width: 11px; height: 11px;
+  background: #10b981;
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.map-reject-pin {
+  width: 13px; height: 13px;
+  background: #f59e0b;
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.map-borderline-pin {
+  width: 12px; height: 12px;
+  background: #6366f1;
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+/* Leaflet popup theme */
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+.leaflet-popup-content { margin: 10px 14px; line-height: 1.45; }
+
 
 /* ─── Demo animations ─── */
 

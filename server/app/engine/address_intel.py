@@ -159,6 +159,42 @@ def _heuristic_pincode(s: str) -> str:
     return m.group(1) if m else ""
 
 
+# Indian pincode-prefix → (city, lat, lng). Used by the mock to assign realistic
+# geocodes for arbitrary seeded addresses so the map view shows legit customers
+# scattered across India and the ring members tightly clustered.
+INDIA_CITY_GEOCODES: dict[str, tuple[str, float, float]] = {
+    "560": ("Bengaluru", 12.9716, 77.5946),
+    "400": ("Mumbai",    19.0760, 72.8777),
+    "110": ("Delhi",     28.6139, 77.2090),
+    "411": ("Pune",      18.5204, 73.8567),
+    "600": ("Chennai",   13.0827, 80.2707),
+    "500": ("Hyderabad", 17.3850, 78.4867),
+    "700": ("Kolkata",   22.5726, 88.3639),
+    "380": ("Ahmedabad", 23.0225, 72.5714),
+    "302": ("Jaipur",    26.9124, 75.7873),
+    "682": ("Kochi",      9.9312, 76.2673),
+}
+
+
+def geocode_from_pincode(pincode: str) -> tuple[float, float] | None:
+    """Approximate lat/lng for an Indian pincode based on the city prefix.
+
+    Adds small deterministic jitter so multiple addresses in the same city
+    don't all stack on the city center.
+    """
+    import math
+    if not pincode or len(pincode) < 3:
+        return None
+    entry = INDIA_CITY_GEOCODES.get(pincode[:3])
+    if not entry:
+        return None
+    _, lat, lng = entry
+    seed_val = sum(ord(c) for c in pincode)
+    jitter_lat = math.sin(seed_val) * 0.04   # ~4km
+    jitter_lng = math.cos(seed_val * 1.3) * 0.04
+    return (lat + jitter_lat, lng + jitter_lng)
+
+
 def _looks_like_real_address(s: str) -> bool:
     """Cheap heuristic — has digits, has comma, has pincode, length > 20."""
     has_pincode = bool(re.search(r"\b\d{6}\b", s))
@@ -205,11 +241,14 @@ def _mock_validate(raw_address: str, region_code: str = "IN") -> AddressValidati
             raw_excerpt={"mock": True, "matched": "heuristic_low"},
         )
 
+    pincode = _heuristic_pincode(raw_address)
+    geo = geocode_from_pincode(pincode)
     return AddressValidation(
         verdict="CONFIRMED",
         canonical=raw_address,
-        pincode=_heuristic_pincode(raw_address),
-        geocode_lat=None, geocode_lng=None,
+        pincode=pincode,
+        geocode_lat=geo[0] if geo else None,
+        geocode_lng=geo[1] if geo else None,
         is_residential=True,
         component_confidence={"premise": 0.85, "route": 0.95, "locality": 0.95,
                               "postal_code": 0.99, "sub_premise": 0.7},
